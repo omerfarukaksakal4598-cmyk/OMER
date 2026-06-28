@@ -1,14 +1,11 @@
 import streamlit as st
 import requests
-from gtts import gTTS
-import os
-import tempfile
 
 st.set_page_config(page_title="📖 Kuran Okuyucu", layout="wide")
 
 # Başlık
 st.title("📖 Kuran Okuyucu")
-st.write("Kuran'dan istediğiniz Sure ve Ayeti okuyun")
+st.write("Kuran'dan istediğiniz Sure ve Ayeti dinleyin")
 
 # API'den Sureleri al
 @st.cache_data
@@ -33,15 +30,13 @@ if not suras:
 # Sura seç
 st.subheader("📚 Sura Seç")
 
-# Sura isimlerini oluştur - DÜZELTILMIŞ
+# Sura isimlerini oluştur
 try:
     sura_names = []
     for s in suras:
-        # Doğru anahtarları kullan
         sura_id = s.get('id', '?')
         sura_arabic = s.get('name_arabic', '?')
         sura_turkish = s.get('translated_name', {}).get('name', '?')
-        
         name = f"{sura_id}. {sura_arabic} ({sura_turkish})"
         sura_names.append(name)
     
@@ -136,52 +131,64 @@ else:
             st.write(f"### {verse_text}")
             st.divider()
         
-        # Oku butonu
-        if st.button("🔊 Ayetleri Sesli Oku"):
+        # Dinle butonu
+        st.subheader("🔊 Dinleyin")
+        
+        # Qari (Okuyucu) seçimi
+        qari_options = {
+            "Abdul Basit": 2,
+            "Mishari Rashid": 7,
+            "Ahmed Al Ajmi": 8,
+            "Fares Abbad": 11,
+        }
+        
+        selected_qari = st.selectbox("Okuyucu Seç:", list(qari_options.keys()))
+        qari_id = qari_options[selected_qari]
+        
+        if st.button("▶️ Ayetleri Dinle"):
             with st.spinner("⏳ Hazırlanıyor..."):
                 try:
-                    # Ayetleri birleştir
-                    full_text = ""
-                    for verse in verses:
-                        verse_num = verse.get('verse_number', '?')
-                        verse_text = verse.get('text_uthmani', '')
-                        full_text += f"Ayet {verse_num}: {verse_text}. "
+                    audio_count = 0
                     
-                    if not full_text.strip():
-                        st.error("❌ Okunacak metin yok")
-                    else:
-                        # Google Text-to-Speech ile ses oluştur
-                        try:
-                            tts = gTTS(text=full_text, lang='ar', slow=False)
+                    for verse in verses:
+                        verse_key = verse.get('verse_key', '')
+                        
+                        if verse_key:
+                            # Audio API
+                            audio_url = f"https://cdn.alquran.cloud/api/v1/quran/en.asad/{verse_key}"
                             
-                            # Temp dosya oluştur
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
-                                temp_path = tmp_file.name
-                                tts.save(temp_path)
-                            
-                            # Sesli okumayı oynat
-                            with open(temp_path, "rb") as audio_file:
-                                st.audio(audio_file.read(), format="audio/mp3")
-                            
-                            st.success("✅ Başarıyla okundu!")
-                            
-                            # Temp dosyayı sil
                             try:
-                                os.remove(temp_path)
+                                audio_response = requests.get(audio_url, timeout=10)
+                                if audio_response.status_code == 200:
+                                    audio_data = audio_response.json()
+                                    verse_num = verse.get('verse_number', '?')
+                                    
+                                    st.write(f"**Ayet {verse_num}:**")
+                                    
+                                    # Quran.com'dan ses URL'sini al
+                                    try:
+                                        # Alternatif: Direct audio URL
+                                        audio_url_direct = f"https://cdn.alquran.cloud/media/audio/edition-{qari_id}/{verse_key}/default.mp3"
+                                        
+                                        st.audio(audio_url_direct, format="audio/mp3")
+                                        audio_count += 1
+                                    except:
+                                        st.warning(f"Ayet {verse_num} ses kaynağı bulunamadı")
                             except:
-                                pass
-                            
-                        except Exception as audio_error:
-                            st.error(f"❌ Ses oluşturma hatası: {str(audio_error)}")
-                            st.info("💡 Lütfen daha az ayet seçin ve tekrar deneyin")
+                                st.warning(f"Ayet {verse_key} yüklenemiyor")
+                    
+                    if audio_count > 0:
+                        st.success(f"✅ {audio_count} ayet başarıyla yüklendi!")
+                    else:
+                        st.error("❌ Ses kaynakları yüklenemedi")
                         
                 except Exception as e:
-                    st.error(f"❌ Beklenmedik hata: {str(e)}")
+                    st.error(f"❌ Ses yükleme hatası: {str(e)}")
     else:
         st.warning("⚠️ Ayetler yüklenemedi. Lütfen tekrar deneyin.")
 
 # Alt bilgi
 st.divider()
-st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → 'Sesli Oku' butonuna tıklayın")
-st.write("📱 **Teknoloji:** Streamlit + Quran API + Google Text-to-Speech")
-st.caption("📖 Kuran'ın metin ve çevirisi quran.com API'sinden alınmaktadır")
+st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → Okuyucu seçin → 'Dinle' butonuna tıklayın")
+st.write("📱 **Teknoloji:** Streamlit + Quran API + Alquran.cloud Audio")
+st.caption("📖 Kuran'ın metin, çeviri ve sesi quran.com ve alquran.cloud API'lerinden alınmaktadır")
