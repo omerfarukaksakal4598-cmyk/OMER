@@ -16,90 +16,136 @@ def get_suras():
     try:
         response = requests.get("https://api.quran.com/api/v4/chapters?language=tr")
         if response.status_code == 200:
-            return response.json()['chapters']
-    except:
-        pass
+            data = response.json()
+            if 'chapters' in data:
+                return data['chapters']
+    except Exception as e:
+        st.error(f"API Hatası: {e}")
     return []
+
+# Sureleri yükle
+suras = get_suras()
+
+if not suras:
+    st.error("❌ Sureler yüklenemedi. Lütfen sayfayı yenileyin.")
+    st.stop()
 
 # Sura seç
 st.subheader("📚 Sura Seç")
-suras = get_suras()
 
-if suras:
-    sura_names = [f"{s['number']}. {s['name_arabic']} ({s['name']})" for s in suras]
-    selected_sura_text = st.selectbox("Sura Seç:", sura_names)
+# Sura isimlerini oluştur - DÜZELTILMIŞ
+try:
+    sura_names = []
+    for s in suras:
+        if 'number' in s and 'name_arabic' in s and 'name' in s:
+            name = f"{s['number']}. {s['name_arabic']} ({s['name']})"
+            sura_names.append(name)
     
-    # Seçilen suranın numarasını al
-    selected_sura_num = int(selected_sura_text.split(".")[0])
+    if not sura_names:
+        st.error("❌ Sura isimleri işlenemedi")
+        st.stop()
+        
+except Exception as e:
+    st.error(f"❌ Sura işleme hatası: {e}")
+    st.stop()
+
+# Sura seçimi
+selected_sura_text = st.selectbox("Sura Seç:", sura_names)
+
+# Seçilen suranın numarasını al
+try:
+    selected_sura_num = int(selected_sura_text.split(".")[0].strip())
     selected_sura = next((s for s in suras if s['number'] == selected_sura_num), None)
     
-    if selected_sura:
-        st.info(f"📖 {selected_sura['name']} Suresi ({selected_sura['name_arabic']})")
-        st.write(f"**Toplam Ayet:** {selected_sura['verses_count']}")
+    if not selected_sura:
+        st.error("❌ Sura seçilemedi")
+        st.stop()
         
-        # Ayet aralığı seç
-        st.subheader("📍 Ayet Seç")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            start_verse = st.number_input(
-                "Başlangıç Ayeti:",
-                min_value=1,
-                max_value=selected_sura['verses_count'],
-                value=1
-            )
-        
-        with col2:
-            end_verse = st.number_input(
-                "Bitiş Ayeti:",
-                min_value=1,
-                max_value=selected_sura['verses_count'],
-                value=min(5, selected_sura['verses_count'])
-            )
-        
-        if start_verse > end_verse:
-            st.error("❌ Başlangıç ayeti bitiş ayetinden küçük olmalı!")
-        else:
-            # Ayetleri al
-            @st.cache_data
-            def get_verses(sura_num, start, end):
+except Exception as e:
+    st.error(f"❌ Sura seçim hatası: {e}")
+    st.stop()
+
+# Seçilen Suranın Bilgileri
+st.info(f"📖 {selected_sura.get('name', 'N/A')} Suresi ({selected_sura.get('name_arabic', 'N/A')})")
+st.write(f"**Toplam Ayet:** {selected_sura.get('verses_count', 0)}")
+
+# Ayet aralığı seç
+st.subheader("📍 Ayet Seç")
+
+col1, col2 = st.columns(2)
+
+verses_count = selected_sura.get('verses_count', 1)
+
+with col1:
+    start_verse = st.number_input(
+        "Başlangıç Ayeti:",
+        min_value=1,
+        max_value=verses_count,
+        value=1
+    )
+
+with col2:
+    end_verse = st.number_input(
+        "Bitiş Ayeti:",
+        min_value=1,
+        max_value=verses_count,
+        value=min(5, verses_count)
+    )
+
+if start_verse > end_verse:
+    st.error("❌ Başlangıç ayeti bitiş ayetinden küçük olmalı!")
+else:
+    # Ayetleri al
+    @st.cache_data
+    def get_verses(sura_num, start, end):
+        try:
+            verses_data = []
+            for verse_num in range(start, end + 1):
                 try:
-                    verses_data = []
-                    for verse_num in range(start, end + 1):
-                        response = requests.get(
-                            f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}"
-                        )
-                        if response.status_code == 200:
-                            verse_data = response.json()['verses'][0]
-                            verses_data.append(verse_data)
-                    return verses_data
-                except Exception as e:
-                    st.error(f"Hata: {e}")
-                    return []
-            
-            verses = get_verses(selected_sura_num, start_verse, end_verse)
-            
-            if verses:
-                st.subheader("📖 Ayetler")
-                
-                # Ayetleri göster
-                for verse in verses:
-                    st.write(f"**Ayet {verse['verse_number']}:**")
-                    st.write(f"### {verse['text_uthmani']}")
-                    st.divider()
-                
-                # Oku butonu
-                if st.button("🔊 Ayetleri Sesli Oku"):
-                    with st.spinner("⏳ Hazırlanıyor..."):
+                    response = requests.get(
+                        f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}",
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        verse_response = response.json()
+                        if 'verses' in verse_response and len(verse_response['verses']) > 0:
+                            verses_data.append(verse_response['verses'][0])
+                except:
+                    continue
+            return verses_data
+        except Exception as e:
+            st.error(f"Hata: {e}")
+            return []
+    
+    verses = get_verses(selected_sura_num, start_verse, end_verse)
+    
+    if verses:
+        st.subheader("📖 Ayetler")
+        
+        # Ayetleri göster
+        for verse in verses:
+            verse_num = verse.get('verse_number', '?')
+            verse_text = verse.get('text_uthmani', 'N/A')
+            st.write(f"**Ayet {verse_num}:**")
+            st.write(f"### {verse_text}")
+            st.divider()
+        
+        # Oku butonu
+        if st.button("🔊 Ayetleri Sesli Oku"):
+            with st.spinner("⏳ Hazırlanıyor..."):
+                try:
+                    # Ayetleri birleştir
+                    full_text = ""
+                    for verse in verses:
+                        verse_num = verse.get('verse_number', '?')
+                        verse_text = verse.get('text_uthmani', '')
+                        full_text += f"Ayet {verse_num}: {verse_text}. "
+                    
+                    if not full_text.strip():
+                        st.error("❌ Okunacak metin yok")
+                    else:
+                        # Google Text-to-Speech ile ses oluştur
                         try:
-                            # Ayetleri birleştir
-                            full_text = ""
-                            for verse in verses:
-                                full_text += f"Ayet {verse['verse_number']}: "
-                                full_text += verse['text_uthmani'] + ". "
-                            
-                            # Google Text-to-Speech ile ses oluştur
                             tts = gTTS(text=full_text, lang='ar', slow=False)
                             
                             # Temp dosya oluştur
@@ -114,15 +160,19 @@ if suras:
                             st.success("✅ Başarıyla okundu!")
                             
                             # Temp dosyayı sil
-                            os.remove(temp_path)
+                            try:
+                                os.remove(temp_path)
+                            except:
+                                pass
                             
-                        except Exception as e:
-                            st.error(f"❌ Ses oluşturma hatası: {str(e)}")
-                            st.info("💡 Lütfen tekrar deneyin veya daha az ayet seçin")
-            else:
-                st.error("❌ Ayetler yüklenemedi")
-else:
-    st.error("❌ Sureler yüklenemedi. İnternet bağlantınızı kontrol edin.")
+                        except Exception as audio_error:
+                            st.error(f"❌ Ses oluşturma hatası: {str(audio_error)}")
+                            st.info("💡 Lütfen daha az ayet seçin ve tekrar deneyin")
+                        
+                except Exception as e:
+                    st.error(f"❌ Beklenmedik hata: {str(e)}")
+    else:
+        st.warning("⚠️ Ayetler yüklenemedi. Lütfen tekrar deneyin.")
 
 # Alt bilgi
 st.divider()
