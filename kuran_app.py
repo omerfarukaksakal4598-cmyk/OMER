@@ -10,7 +10,7 @@ GOOGLE_API_KEY = "AQ.Ab8RN6JSVe_fKjed6XRz0MUF6rPjY_mY3yixBsNoO6e7AD3EpA"
 
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"❌ Google API Hatası: {e}")
     st.stop()
