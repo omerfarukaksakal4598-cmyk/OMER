@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
-import pyttsx3
+from gtts import gTTS
 import os
+import tempfile
 
 st.set_page_config(page_title="📖 Kuran Okuyucu", layout="wide")
 
@@ -70,9 +71,11 @@ if suras:
                             f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}"
                         )
                         if response.status_code == 200:
-                            verses_data.append(response.json()['verses'][0])
+                            verse_data = response.json()['verses'][0]
+                            verses_data.append(verse_data)
                     return verses_data
-                except:
+                except Exception as e:
+                    st.error(f"Hata: {e}")
                     return []
             
             verses = get_verses(selected_sura_num, start_verse, end_verse)
@@ -87,49 +90,42 @@ if suras:
                     st.divider()
                 
                 # Oku butonu
-                if st.button("🔊 Ayetleri Oku (Sesli)"):
-                    st.info("⏳ Hazırlanıyor...")
-                    
-                    try:
-                        # Text-to-speech engine
-                        engine = pyttsx3.init()
-                        engine.setProperty('rate', 150)  # Hız
-                        
-                        # Ayetleri birleştir
-                        full_text = ""
-                        for verse in verses:
-                            full_text += f"Ayet {verse['verse_number']}: "
-                            full_text += verse['text_uthmani'] + "\n"
-                        
-                        # Dosya adı
-                        audio_file = "kuran_oku.mp3"
-                        
-                        # Sesi kaydet
-                        engine.save_to_file(full_text, audio_file)
-                        engine.runAndWait()
-                        
-                        # Oynat
-                        if os.path.exists(audio_file):
-                            with open(audio_file, "rb") as f:
-                                st.audio(f.read(), format="audio/mp3")
-                            st.success("✅ Başarıyla okundu!")
-                            os.remove(audio_file)
-                    except Exception as e:
-                        st.error(f"❌ Ses çalma hatası: {e}")
-                        st.info("💡 Google Translate sesini kullan:")
-                        
-                        # Alternatif: Google Translate API
+                if st.button("🔊 Ayetleri Sesli Oku"):
+                    with st.spinner("⏳ Hazırlanıyor..."):
                         try:
-                            from google.cloud import texttospeech
-                            st.write("Google Cloud Text-to-Speech kurulmalı")
-                        except:
-                            st.write("Alternatif olarak çevrimiçi okuyucu kullanabilirsiniz")
+                            # Ayetleri birleştir
+                            full_text = ""
+                            for verse in verses:
+                                full_text += f"Ayet {verse['verse_number']}: "
+                                full_text += verse['text_uthmani'] + ". "
+                            
+                            # Google Text-to-Speech ile ses oluştur
+                            tts = gTTS(text=full_text, lang='ar', slow=False)
+                            
+                            # Temp dosya oluştur
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                                temp_path = tmp_file.name
+                                tts.save(temp_path)
+                            
+                            # Sesli okumayı oynat
+                            with open(temp_path, "rb") as audio_file:
+                                st.audio(audio_file.read(), format="audio/mp3")
+                            
+                            st.success("✅ Başarıyla okundu!")
+                            
+                            # Temp dosyayı sil
+                            os.remove(temp_path)
+                            
+                        except Exception as e:
+                            st.error(f"❌ Ses oluşturma hatası: {str(e)}")
+                            st.info("💡 Lütfen tekrar deneyin veya daha az ayet seçin")
             else:
                 st.error("❌ Ayetler yüklenemedi")
 else:
-    st.error("❌ Sureler yüklenemedi")
+    st.error("❌ Sureler yüklenemedi. İnternet bağlantınızı kontrol edin.")
 
 # Alt bilgi
 st.divider()
-st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → 'Oku' butonuna tıklayın")
-st.write("📱 **Teknoloji:** Streamlit + Quran API + Python TTS")
+st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → 'Sesli Oku' butonuna tıklayın")
+st.write("📱 **Teknoloji:** Streamlit + Quran API + Google Text-to-Speech")
+st.caption("📖 Kuran'ın metin ve çevirisi quran.com API'sinden alınmaktadır")
