@@ -28,7 +28,7 @@ if not suras:
     st.stop()
 
 # Sura seç
-st.subheader("📚 Sura Seç")
+st.subheader("📚 Sure Seç")
 
 # Sura isimlerini oluştur
 try:
@@ -134,61 +134,56 @@ else:
         # Dinle butonu
         st.subheader("🔊 Dinleyin")
         
-        # Qari (Okuyucu) seçimi
+        # Qari (Okuyucu) seçimi - Alquran.cloud Okuyucuları
         qari_options = {
-            "Abdul Basit": 2,
-            "Mishari Rashid": 7,
-            "Ahmed Al Ajmi": 8,
-            "Fares Abbad": 11,
+            "Abdul Basit": "abdulbasit",
+            "Mishari Rashid": "mishari",
+            "Ahmed Al Ajmi": "ajmi",
+            "Saad Al Ghamdi": "ghamdi",
         }
         
         selected_qari = st.selectbox("Okuyucu Seç:", list(qari_options.keys()))
-        qari_id = qari_options[selected_qari]
+        qari_code = qari_options[selected_qari]
         
         if st.button("▶️ Ayetleri Dinle"):
-            with st.spinner("⏳ Hazırlanıyor..."):
+            with st.spinner("⏳ Ses dosyaları yükleniyor..."):
                 try:
                     audio_count = 0
                     
                     for verse in verses:
-                        verse_key = verse.get('verse_key', '')
+                        verse_num = verse.get('verse_number', '?')
                         
-                        if verse_key:
-                            # Audio API
-                            audio_url = f"https://cdn.alquran.cloud/api/v1/quran/en.asad/{verse_key}"
+                        try:
+                            # Alquran.cloud direct audio URL
+                            audio_url = f"https://cdn.alquran.cloud/media/audio/{qari_code}/{selected_sura_num}/{verse_num}.mp3"
                             
-                            try:
-                                audio_response = requests.get(audio_url, timeout=10)
-                                if audio_response.status_code == 200:
-                                    audio_data = audio_response.json()
-                                    verse_num = verse.get('verse_number', '?')
-                                    
-                                    st.write(f"**Ayet {verse_num}:**")
-                                    
-                                    # Quran.com'dan ses URL'sini al
-                                    try:
-                                        # Alternatif: Direct audio URL
-                                        audio_url_direct = f"https://cdn.alquran.cloud/media/audio/edition-{qari_id}/{verse_key}/default.mp3"
-                                        
-                                        st.audio(audio_url_direct, format="audio/mp3")
-                                        audio_count += 1
-                                    except:
-                                        st.warning(f"Ayet {verse_num} ses kaynağı bulunamadı")
-                            except:
-                                st.warning(f"Ayet {verse_key} yüklenemiyor")
+                            # URL'nin çalışıp çalışmadığını kontrol et
+                            head_response = requests.head(audio_url, timeout=5)
+                            
+                            if head_response.status_code == 200:
+                                st.write(f"**Ayet {verse_num}:**")
+                                st.audio(audio_url, format="audio/mp3")
+                                audio_count += 1
+                            else:
+                                st.warning(f"❌ Ayet {verse_num} bulunamadı")
+                                
+                        except Exception as e:
+                            st.warning(f"⚠️ Ayet {verse_num} yüklenemedi: {str(e)}")
                     
                     if audio_count > 0:
                         st.success(f"✅ {audio_count} ayet başarıyla yüklendi!")
                     else:
-                        st.error("❌ Ses kaynakları yüklenemedi")
+                        st.error("❌ Hiçbir ses dosyası yüklenemedi")
+                        st.info("💡 Lütfen başka bir okuyucu seçmeyi deneyin")
                         
                 except Exception as e:
                     st.error(f"❌ Ses yükleme hatası: {str(e)}")
+                    st.info("💡 Lütfen interneti kontrol edip tekrar deneyin")
     else:
         st.warning("⚠️ Ayetler yüklenemedi. Lütfen tekrar deneyin.")
 
 # Alt bilgi
 st.divider()
-st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → Okuyucu seçin → 'Dinle' butonuna tıklayın")
+st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı girin → Okuyucu seçin → 'Dinle' tuşuna tıklayın")
 st.write("📱 **Teknoloji:** Streamlit + Quran API + Alquran.cloud Audio")
 st.caption("📖 Kuran'ın metin, çeviri ve sesi quran.com ve alquran.cloud API'lerinden alınmaktadır")
