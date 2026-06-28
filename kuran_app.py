@@ -5,8 +5,8 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="📖 Kuran Okuyucu AI", layout="wide")
 
-# Google Gemini API Key
-GOOGLE_API_KEY = "AQ.Ab8RN6JSVe_fKjed6XRz0MUF6rPjY_mY3yixBsNoO6e7AD3EpA"
+# Google Gemini API Key - ENTEGRE EDİLMİŞ
+GOOGLE_API_KEY = "AQ.Ab8RN6IUHeBgmmGxCD20VueZySfB8nCIVSnYsw16y5b6xWaLnA"
 
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
@@ -16,8 +16,8 @@ except Exception as e:
     st.stop()
 
 # Başlık
-st.title(" Kuran Okuyucu - Google Gemini AI")
-st.write("Sureyi seçin, AI YouTube'dan bulsun ve profesyonel analiz yapsın!")
+st.title("📖 Kuran Okuyucu - AI Analiz")
+st.write("Sureyi seçin, AI YouTube'dan bulsun ve analiz yapsın!")
 
 # API'den Sureleri al
 @st.cache_data
@@ -36,11 +36,11 @@ def get_suras():
 suras = get_suras()
 
 if not suras:
-    st.error(" Sureler yüklenemedi.")
+    st.error("❌ Sureler yüklenemedi.")
     st.stop()
 
 # Sura seç
-st.subheader(" Sure Seç")
+st.subheader("📚 Sura Seç")
 
 sura_names = []
 for s in suras:
@@ -56,7 +56,7 @@ selected_sura_num = int(selected_sura_text.split(".")[0].strip())
 selected_sura = next((s for s in suras if s['id'] == selected_sura_num), None)
 
 if not selected_sura:
-    st.error(" Sure seçilemedi")
+    st.error("❌ Sura seçilemedi")
     st.stop()
 
 # Seçilen Suranın Bilgileri
@@ -89,11 +89,11 @@ with col2:
     )
 
 if start_verse > end_verse:
-    st.error(" Başlangıç ayeti bitiş ayetinden küçük olmalı!")
+    st.error("❌ Başlangıç ayeti bitiş ayetinden küçük olmalı!")
     st.stop()
 
 # Okuyucu seçimi
-st.subheader(" Okuyucu Seç")
+st.subheader("🎤 Okuyucu Seç")
 
 qari_options = {
     "Abdul Basit": "Abdul Basit",
@@ -104,132 +104,137 @@ qari_options = {
 
 selected_qari = st.selectbox("Okuyucu:", list(qari_options.keys()))
 
-# YouTube'da Ara + AI Analiz
-if st.button(" YouTube'da Ara ve AI ile Analiz Et"):
-    with st.spinner(" YouTube'da arıyor..."):
+# Ayetleri al
+@st.cache_data
+def get_verses(sura_num, start, end):
+    verses_data = []
+    for verse_num in range(start, end + 1):
         try:
-            # Arama sorgusu
+            response = requests.get(
+                f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}",
+                timeout=10
+            )
+            if response.status_code == 200:
+                verse_response = response.json()
+                if 'verses' in verse_response and len(verse_response['verses']) > 0:
+                    verses_data.append(verse_response['verses'][0])
+        except:
+            continue
+    return verses_data
+
+verses = get_verses(selected_sura_num, start_verse, end_verse)
+
+if not verses:
+    st.error("❌ Ayetler yüklenemedi")
+    st.stop()
+
+# Ayetleri metin olarak hazırla
+verses_text = ""
+for verse in verses:
+    verse_key = verse.get('verse_key', '?:?')
+    verse_text = verse.get('text_uthmani', 'N/A')
+    
+    if ':' in verse_key:
+        verse_num = verse_key.split(':')[1]
+    else:
+        verse_num = '?'
+    
+    verses_text += f"Ayet {verse_num}: {verse_text}\n"
+
+# AI Analiz Butonu
+if st.button("🤖 AI ile Analiz Et"):
+    with st.spinner("🧠 Google Gemini analiz ediyor..."):
+        try:
+            # YouTube'da video ara
             search_query = f"{sura_arabic} {start_verse}:{end_verse} {selected_qari}"
             
-            st.info(f"📱 Aranan: {search_query}")
+            st.info(f"📱 YouTube'da aranan: {search_query}")
             
-            # yt-dlp ile YouTube'dan video ara
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-            }
-            
-            video_found = False
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                search_results = ydl.extract_info(f"ytsearch:{search_query}", download=False)
+            video_info = ""
+            try:
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                }
                 
-                if search_results and 'entries' in search_results and len(search_results['entries']) > 0:
-                    first_video = search_results['entries'][0]
-                    video_url = f"https://www.youtube.com/watch?v={first_video['id']}"
-                    video_title = first_video.get('title', 'Video')
-                    video_desc = first_video.get('description', '')[:1000]
-                    video_duration = first_video.get('duration', 0)
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    search_results = ydl.extract_info(f"ytsearch:{search_query}", download=False)
                     
-                    st.success(f"✅ Bulundu: {video_title}")
-                    st.write(f"**Video Süresi:** {video_duration // 60} dakika")
-                    
-                    # YouTube video göster
-                    st.video(video_url)
-                    
-                    video_found = True
-                    
-                    # Ayetleri al
-                    @st.cache_data
-                    def get_verses(sura_num, start, end):
-                        verses_data = []
-                        for verse_num in range(start, end + 1):
-                            try:
-                                response = requests.get(
-                                    f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}",
-                                    timeout=10
-                                )
-                                if response.status_code == 200:
-                                    verse_response = response.json()
-                                    if 'verses' in verse_response and len(verse_response['verses']) > 0:
-                                        verses_data.append(verse_response['verses'][0])
-                            except:
-                                continue
-                        return verses_data
-                    
-                    verses = get_verses(selected_sura_num, start_verse, end_verse)
-                    
-                    # Ayetleri metin olarak hazırla
-                    verses_text = ""
-                    for verse in verses:
-                        verse_key = verse.get('verse_key', '?:?')
-                        verse_text = verse.get('text_uthmani', 'N/A')
+                    if search_results and 'entries' in search_results and len(search_results['entries']) > 0:
+                        first_video = search_results['entries'][0]
+                        video_title = first_video.get('title', 'Video')
+                        video_desc = first_video.get('description', '')[:500]
+                        video_duration = first_video.get('duration', 0)
                         
-                        if ':' in verse_key:
-                            verse_num = verse_key.split(':')[1]
-                        else:
-                            verse_num = '?'
-                        
-                        verses_text += f"Ayet {verse_num}: {verse_text}\n"
-                    
-                    # AI ile analiz et
-                    st.subheader(" Google Gemini AI Analizi")
-                    
-                    with st.spinner(" Gemini analiz ediyor..."):
-                        try:
-                            prompt = f"""
+                        video_info = f"""
+VIDEO BİLGİSİ:
+Başlık: {video_title}
+Süresi: {video_duration // 60} dakika
+Açıklaması: {video_desc}
+"""
+                        st.success(f"✅ Bulundu: {video_title}")
+            except:
+                st.warning("⚠️ YouTube video bulunamadı ama analiz yapılacak")
+            
+            # AI ile analiz et
+            st.subheader("🤖 Google Gemini Analizi")
+            
+            prompt = f"""
 Kuran'ın {sura_arabic} Suresi, {start_verse}. ayetten {end_verse}. ayete kadarki bölümü hakkında detaylı analiz yap.
 
 AYETLER:
 {verses_text}
 
-VIDEO BİLGİSİ:
-Başlık: {video_title}
-Süresi: {video_duration // 60} dakika
-Açıklaması: {video_desc}
+{video_info}
 
-Lütfen detaylı bir analiz yap:
+Lütfen Türkçe ve detaylı bir analiz yap:
+
 1. **Ayet Anlamı**: Bu ayet aralığının Kuran'daki yeri ve anlamı nedir?
-2. **Temel Mesaj**: Surenin bu bölümünün temel konusu ve mesajı ne?
-3. **İlişkiler**: Önceki ve sonraki ayetlerle bağlantısı?
-4. **Video Değerlendirmesi**: {selected_qari}'nin bu okuyuşu ne kadar profesyoneldir?
-5. **Pratik Uygulanabilirlik**: Bu ayetler günümüzde nasıl uygulanabilir?
 
-Türkçe, detaylı ve akademik bir şekilde yanıt ver.
+2. **Temel Mesaj**: Surenin bu bölümünün temel konusu ve mesajı ne?
+
+3. **İçeriği**: Ayetlerde anlatılan başlıca temalar nelerdir?
+
+4. **Okuyuş Kalitesi**: {selected_qari}'nin bu okuyuşu nasıl değerlendirirsin?
+
+5. **Günümüze Uygulanabilirlik**: Bu ayetler günümüzde nasıl uygulanabilir?
+
+6. **Tarihsel Bağlam**: Bu ayetlerin indiği dönem hakkında ne söyleyebilirsin?
+
+Detaylı, akademik ve anlaşılır bir şekilde yanıt ver.
 """
-                            
-                            response = model.generate_content(prompt)
-                            ai_response = response.text
-                            
-                            st.write(ai_response)
-                            
-                            # Ayet Metni Bölümü
-                            st.subheader("📖 Ayet Metni")
-                            
-                            for verse in verses:
-                                verse_key = verse.get('verse_key', '?:?')
-                                verse_text = verse.get('text_uthmani', 'N/A')
-                                
-                                if ':' in verse_key:
-                                    verse_num = verse_key.split(':')[1]
-                                else:
-                                    verse_num = '?'
-                                
-                                st.write(f"**Ayet {verse_num}:**")
-                                st.write(f"### {verse_text}")
-                                st.divider()
-                            
-                        except Exception as ai_error:
-                            st.error(f"❌ AI Analiz Hatası: {str(ai_error)}")
-                            st.info("💡 Gemini API key'ini kontrol edin")
-                else:
-                    st.error("❌ YouTube'da video bulunamadı")
-                    
+            
+            try:
+                response = model.generate_content(prompt)
+                ai_response = response.text
+                
+                st.write(ai_response)
+                
+            except Exception as ai_error:
+                st.error(f"❌ AI Hatası: {str(ai_error)}")
+                st.info("💡 Lütfen tekrar deneyin")
+        
         except Exception as e:
             st.error(f"❌ Hata: {str(e)}")
 
+# Ayet Metni Bölümü
+st.subheader("📖 Ayet Metni")
+
+for verse in verses:
+    verse_key = verse.get('verse_key', '?:?')
+    verse_text = verse.get('text_uthmani', 'N/A')
+    
+    if ':' in verse_key:
+        verse_num = verse_key.split(':')[1]
+    else:
+        verse_num = '?'
+    
+    st.write(f"**Ayet {verse_num}:**")
+    st.write(f"### {verse_text}")
+    st.divider()
+
 # Alt bilgi
 st.divider()
-st.write(" **Kullanım:** Sure seçin → Ayet aralığı → Okuyucu → 'Ara ve Analiz Et'")
+st.write(" **Kullanım:** Sure seçin → Ayet aralığı → Okuyucu → 'AI ile Analiz Et'")
