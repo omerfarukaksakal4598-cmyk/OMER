@@ -144,7 +144,7 @@ if audio_urls:
     
     html_player = f"""
     <div style="background-color: #1e1e1e; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid #333;">
-        <h3 style="color: white; margin-top: 0; font-family: sans-serif;">🔊 Kesintisiz Oynatıcı</h3>
+        <h3 style="color: white; margin-top: 0; font-family: sans-serif;"> Oynatıcı</h3>
         <audio id="quranPlayer" controls style="width: 100%; outline: none;">
             <source src="{audio_urls[0]}" type="audio/mpeg">
             Tarayıcınız ses oynatıcıyı desteklemiyor.
@@ -181,7 +181,7 @@ else:
     st.warning(" Bu aralık için ses bağlantıları bulunamadı.")
 
 # 2. BÖLÜM: BÜTÜNLEŞİK ARAPÇA METNİ GÖSTER
-st.markdown("<h3 style='text-align: right; color: gray;'>📖 Okunuş</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: right; color: gray;'> Okunuş</h3>", unsafe_allow_html=True)
 
 # Tek parça, Mushaf düzeninde (sağa yatık, büyük fontlu) metin
 st.markdown(
