@@ -2,10 +2,10 @@ import streamlit as st
 import requests
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="📖 Kuran Okuyucu", layout="wide")
+st.set_page_config(page_title=" Kuran Okuyucu", layout="wide")
 
 # Başlık
-st.title("📖 Kuran Okuyucu")
+st.title(" Kuran Okuyucu")
 st.write("Kuran'dan istediğiniz Sure ve Ayeti kesintisiz bir şekilde dinleyin.")
 
 # Ayet numaralarını Arapça rakamlara çeviren yardımcı fonksiyon
@@ -29,11 +29,11 @@ def get_suras():
 suras = get_suras()
 
 if not suras:
-    st.error("❌ Sureler yüklenemedi.")
+    st.error(" Sureler yüklenemedi.")
     st.stop()
 
 # Sure seçimi
-st.subheader("📚 Sure Seç")
+st.subheader(" Sure Seç")
 
 sure_names = []
 for s in suras:
@@ -48,17 +48,17 @@ selected_sure_num = int(selected_sure_text.split(".")[0].strip())
 selected_sure = next((s for s in suras if s['id'] == selected_sure_num), None)
 
 if not selected_sure:
-    st.error("❌ Sure seçilemedi")
+    st.error(" Sure seçilemedi")
     st.stop()
 
 sure_name = selected_sure.get('translated_name', {}).get('name', 'N/A')
 sure_arabic = selected_sure.get('name_arabic', 'N/A')
 verses_count = selected_sure.get('verses_count', 1)
 
-st.info(f"📖 {sure_name} Suresi ({sure_arabic}) — **Toplam Ayet:** {verses_count}")
+st.info(f" {sure_name} Suresi ({sure_arabic}) — **Toplam Ayet:** {verses_count}")
 
 # Ayet aralığı seç
-st.subheader("📍 Ayet Aralığı Seç")
+st.subheader(" Ayet Aralığı Seç")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -68,11 +68,11 @@ with col2:
     end_verse = st.number_input("Bitiş Ayeti:", min_value=1, max_value=verses_count, value=min(5, verses_count))
 
 if start_verse > end_verse:
-    st.error("❌ Başlangıç ayeti bitiş ayetinden küçük veya eşit olmalı!")
+    st.error(" Başlangıç ayeti bitiş ayetinden küçük veya eşit olmalı!")
     st.stop()
 
 # Okuyucu seçimi
-st.subheader("🎤 Okuyucu Seç")
+st.subheader(" Okuyucu Seç")
 qari_options = {
     "Mishari Rashid Alafasy": 7,
     "Abdul Basit (Murattal)": 1,
@@ -114,7 +114,7 @@ all_verses = get_all_verses_uthmani(selected_sure_num)
 filtered_verses = all_verses[start_verse - 1 : end_verse]
 
 if not filtered_verses:
-    st.error("❌ Ayetler filtrelenemedi veya yüklenemedi.")
+    st.error(" Ayetler filtrelenemedi veya yüklenemedi.")
     st.stop()
 
 st.divider()
@@ -178,7 +178,7 @@ if audio_urls:
     # HTML oynatıcıyı ekrana bas
     components.html(html_player, height=150)
 else:
-    st.warning("⚠️ Bu aralık için ses bağlantıları bulunamadı.")
+    st.warning(" Bu aralık için ses bağlantıları bulunamadı.")
 
 # 2. BÖLÜM: BÜTÜNLEŞİK ARAPÇA METNİ GÖSTER
 st.markdown("<h3 style='text-align: right; color: gray;'>📖 Okunuş</h3>", unsafe_allow_html=True)
@@ -190,4 +190,4 @@ st.markdown(
 )
 
 st.divider()
-st.write("💡 **Kullanım:** Oynatıcıdan 'Play' tuşuna bastığınızda seçtiğiniz aralıktaki tüm ayetler sırasıyla otomatik çalacaktır.")
+st.write(" **Kullanım:** Oynatıcıdan 'Play' tuşuna bastığınızda seçtiğiniz aralıktaki tüm ayetler sırasıyla otomatik çalacaktır.")
