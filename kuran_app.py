@@ -1,5 +1,8 @@
 import streamlit as st
 import requests
+from gtts import gTTS
+import tempfile
+import os
 
 st.set_page_config(page_title="📖 Kuran Okuyucu", layout="wide")
 
@@ -27,38 +30,38 @@ if not suras:
     st.error("❌ Sureler yüklenemedi.")
     st.stop()
 
-# Sura seç
+# Sure seç
 st.subheader("📚 Sure Seç")
 
-sura_names = []
+sure_names = []
 for s in suras:
-    sura_id = s.get('id', '?')
-    sura_arabic = s.get('name_arabic', '?')
-    sura_turkish = s.get('translated_name', {}).get('name', '?')
-    name = f"{sura_id}. {sura_arabic} ({sura_turkish})"
-    sura_names.append(name)
+    sure_id = s.get('id', '?')
+    sure_arabic = s.get('name_arabic', '?')
+    sure_turkish = s.get('translated_name', {}).get('name', '?')
+    name = f"{sure_id}. {sure_arabic} ({sure_turkish})"
+    sure_names.append(name)
 
-selected_sura_text = st.selectbox("Sura Seç:", sura_names)
+selected_sure_text = st.selectbox("Sure Seç:", sure_names)
 
-selected_sura_num = int(selected_sura_text.split(".")[0].strip())
-selected_sura = next((s for s in suras if s['id'] == selected_sura_num), None)
+selected_sure_num = int(selected_sure_text.split(".")[0].strip())
+selected_sure = next((s for s in suras if s['id'] == selected_sure_num), None)
 
-if not selected_sura:
+if not selected_sure:
     st.error("❌ Sure seçilemedi")
     st.stop()
 
-# Seçilen Suranın Bilgileri
-sura_name = selected_sura.get('translated_name', {}).get('name', 'N/A')
-sura_arabic = selected_sura.get('name_arabic', 'N/A')
-st.info(f"📖 {sura_name} Suresi ({sura_arabic})")
-st.write(f"**Toplam Ayet:** {selected_sura.get('verses_count', 0)}")
+# Seçilen Surenin Bilgileri
+sure_name = selected_sure.get('translated_name', {}).get('name', 'N/A')
+sure_arabic = selected_sure.get('name_arabic', 'N/A')
+st.info(f"📖 {sure_name} Suresi ({sure_arabic})")
+st.write(f"**Toplam Ayet:** {selected_sure.get('verses_count', 0)}")
 
 # Ayet aralığı seç
 st.subheader("📍 Ayet Aralığı Seç")
 
 col1, col2 = st.columns(2)
 
-verses_count = selected_sura.get('verses_count', 1)
+verses_count = selected_sure.get('verses_count', 1)
 
 with col1:
     start_verse = st.number_input(
@@ -95,12 +98,12 @@ selected_qari = qari_options[selected_qari_name]
 
 # Ayetleri al
 @st.cache_data
-def get_verses(sura_num, start, end):
+def get_verses(sure_num, start, end):
     verses_data = []
     for verse_num in range(start, end + 1):
         try:
             response = requests.get(
-                f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sura_num}&verse_number={verse_num}",
+                f"https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={sure_num}&verse_number={verse_num}",
                 timeout=10
             )
             if response.status_code == 200:
@@ -111,7 +114,7 @@ def get_verses(sura_num, start, end):
             continue
     return verses_data
 
-verses = get_verses(selected_sura_num, start_verse, end_verse)
+verses = get_verses(selected_sure_num, start_verse, end_verse)
 
 if not verses:
     st.error("❌ Ayetler yüklenemedi")
@@ -131,32 +134,56 @@ for verse in verses:
     
     st.write(f"**Ayet {verse_num}:**")
     st.write(f"### {verse_text}")
-    st.divider()
 
-# Ses Oynatma
-st.subheader("🔊 Dinle")
+# Sesli Okuma - Hepsini Birleştir
+st.subheader("🔊 Sesli Okuma")
 
-audio_urls = []
-for verse in verses:
-    verse_key = verse.get('verse_key', '')
-    
-    if verse_key and ':' in verse_key:
-        surah, ayah = verse_key.split(':')
-        surah = surah.strip()
-        ayah = ayah.strip()
-        
-        audio_url = f"https://cdn.alquran.cloud/media/audio/{selected_qari}/{surah}/{ayah}.mp3"
-        audio_urls.append((ayah, audio_url))
-
-if audio_urls:
-    for ayah_num, audio_url in audio_urls:
-        st.write(f"**Ayet {ayah_num}:**")
-        st.audio(audio_url, format="audio/mp3")
-else:
-    st.warning("⚠️ Ses dosyaları bulunamadı")
+if st.button("▶️ Tüm Ayetleri Sesli Oku"):
+    with st.spinner("🎵 Ses hazırlanıyor..."):
+        try:
+            # Tüm ayetleri birleştir
+            full_text = ""
+            for verse in verses:
+                verse_key = verse.get('verse_key', '?:?')
+                verse_text = verse.get('text_uthmani', '')
+                
+                if ':' in verse_key:
+                    verse_num = verse_key.split(':')[1]
+                else:
+                    verse_num = '?'
+                
+                full_text += f"Ayet {verse_num}: {verse_text}. "
+            
+            if full_text.strip():
+                # Google Text-to-Speech ile Arapça ses oluştur
+                try:
+                    tts = gTTS(text=full_text, lang='ar', slow=False)
+                    
+                    # Temp dosyaya kaydet
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                        temp_path = tmp_file.name
+                        tts.save(temp_path)
+                    
+                    # Oynat
+                    with open(temp_path, "rb") as audio_file:
+                        st.audio(audio_file.read(), format="audio/mp3")
+                    
+                    st.success(f"✅ {len(verses)} ayet sesli okundu!")
+                    
+                    # Temp dosyayı sil
+                    try:
+                        os.remove(temp_path)
+                    except:
+                        pass
+                        
+                except Exception as audio_error:
+                    st.error(f"❌ Ses oluşturma hatası: {str(audio_error)}")
+            else:
+                st.error("❌ Okunacak metin yok")
+                
+        except Exception as e:
+            st.error(f"❌ Hata: {str(e)}")
 
 # Alt bilgi
 st.divider()
-st.write("💡 **Kullanım:** Sura seçin → Ayet aralığı → Okuyucu → Sesli Dinleyin")
-st.write("📱 **Teknoloji:** Streamlit + Quran API + Alquran.cloud Audio")
-st.caption("📖 Kuran'ın metin ve sesi quran.com ve alquran.cloud API'lerinden alınmaktadır")
+st.write("💡 **Kullanım:** Sure seçin → Ayet aralığı → Okuyucu → 'Tüm Ayetleri Sesli Oku'")
