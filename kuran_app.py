@@ -124,7 +124,7 @@ for verse in filtered_verses:
     
     # Ayet başlığı ve metni (Sağa yatık Arapça düzeni için markdown)
     st.markdown(f"**Ayet {verse_num}**")
-    st.markdown(f"<div style='text-align: right; direction: rtl; font-size: 28px; font-family: sans-serif; line-height: 1.8; margin-bottom: 10px;'>{verse_text}</div>", unsafe_allow_index=True)
+    st.markdown(f"<div style='text-align: right; direction: rtl; font-size: 28px; font-family: sans-serif; line-height: 1.8; margin-bottom: 10px;'>{verse_text}</div>", unsafe_allow_html=True)
     
     # Her ayetin altına kendi okuyucu sesini yerleştiriyoruz
     with st.spinner(f"Ayet {verse_num} için ses yükleniyor..."):
@@ -135,3 +135,7 @@ for verse in filtered_verses:
             st.warning(f"⚠️ Ayet {verse_num} için ses dosyası bulunamadı.")
     
     st.write("---")
+
+# Alt bilgi
+st.divider()
+st.write("💡 **Kullanım:** Sure seçin → Ayet aralığı seçin → Okuyucu seçin. Ayetler ve ses oynatıcılar otomatik olarak aşağıda listelenecektir.")
