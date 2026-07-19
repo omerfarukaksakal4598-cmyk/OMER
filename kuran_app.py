@@ -74,7 +74,7 @@ if start_verse > end_verse:
 # Okuyucu seçimi
 st.subheader(" Okuyucu Seç")
 qari_options = {
-    "OKUYUCU 1": 7,
+    "OKUYUCU 5": 7,
     "OKUYUCU 2 ": 1,
     "OKUYUCU 3": 3,
     "OKUYUCU 4": 4,
