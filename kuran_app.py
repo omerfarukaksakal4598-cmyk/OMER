@@ -74,10 +74,10 @@ if start_verse > end_verse:
 # Okuyucu seçimi
 st.subheader(" Okuyucu Seç")
 qari_options = {
-    "Mishari Rashid Alafasy": 7,
-    "Abdul Basit (Murattal)": 1,
-    "Ahmed Al Ajmi": 3,
-    "Saad Al Ghamdi": 4,
+    "OKUYUCU 1": 7,
+    "OKUYUCU 2 ": 1,
+    "OKUYUCU 3": 3,
+    "OKUYUCU 4": 4,
 }
 selected_qari_name = st.selectbox("Okuyucu:", list(qari_options.keys()))
 selected_qari_id = qari_options[selected_qari_name]
